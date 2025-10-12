@@ -296,21 +296,25 @@ namespace VRCX
 #if LINUX
                     m_LogQueue.Enqueue(logLine);
 #else
-                    if (MainForm.Instance != null && MainForm.Instance.Browser != null)
+                    var browser = MainForm.Instance?.Browser;
+                    if (browser != null)
                     {
-                        var script = @"(function(logLine){
-                            try {
-                                if (window && window.$pinia && window.$pinia.gameLog && typeof window.$pinia.gameLog.addGameLogEvent === 'function') {
-                                    window.$pinia.gameLog.addGameLogEvent(logLine);
-                                } else {
-                                    window.__gameLogQueue = window.__gameLogQueue || [];
-                                    window.__gameLogQueue.push(logLine);
-                                }
-                            } catch (e) {
-                                console.error('GameLog dispatch error:', e);
-                            }
-                        })";
-                        MainForm.Instance.Browser.ExecuteScriptAsync(script, logLine);
+                        const string script =
+                            """
+                                (function(logLine) {
+                                    try {
+                                        if (window?.$pinia?.gameLog?.addGameLogEvent) {
+                                            window.$pinia.gameLog.addGameLogEvent(logLine);
+                                        } else {
+                                            window.__gameLogQueue = window.__gameLogQueue || [];
+                                            window.__gameLogQueue.push(logLine);
+                                        }
+                                    } catch (e) {
+                                        console.error('GameLog dispatch error:', e);
+                                    }
+                                })
+                            """;
+                        browser.ExecuteScriptAsync(script, logLine);
                     }
 #endif
                 }

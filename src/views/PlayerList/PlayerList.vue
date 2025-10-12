@@ -393,11 +393,11 @@
                 </DataTable>
             </div>
             
-            <!-- Separator between player list and companion log -->
-            <div v-if="photonLoggingEnabled" style="margin: 20px 0; border-bottom: 1px solid #e4e7ed;"></div>
-            
-            <!-- Move PhotonEventTable inside the flex container -->
-            <PhotonEventTable v-if="photonLoggingEnabled" @show-chatbox-blacklist="showChatboxBlacklistDialog" />
+            <PhotonEventTable v-if="photonLoggingEnabled" @show-chatbox-blacklist="showChatboxBlacklistDialog">
+                <template #default>
+                    <div style="margin: 20px 0; border-bottom: 1px solid #e4e7ed;"></div>
+                </template>
+            </PhotonEventTable>
         </div>
         <ChatboxBlacklistDialog
             :chatbox-blacklist-dialog="chatboxBlacklistDialog"

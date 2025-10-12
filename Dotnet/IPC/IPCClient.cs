@@ -89,25 +89,25 @@ namespace VRCX
                         continue;
 
 #if !LINUX
-                    if (MainForm.Instance?.Browser != null && !MainForm.Instance.Browser.IsLoading && MainForm.Instance.Browser.CanExecuteJavascriptInMainFrame)
-                    {
-                        // Safely dispatch IPC packet to the web app. If $pinia/vrcx/ipcEvent isn't ready yet,
-                        // enqueue the packet on window.__ipcQueue to be processed once the app bootstraps.
-                        var script = @"(function(packet){
-                            try {
-                                if (window && window.$pinia && window.$pinia.vrcx && typeof window.$pinia.vrcx.ipcEvent === 'function' && 
-                                    window.$pinia.photon && Array.isArray(window.$pinia.photon.chatboxBlacklist)) {
-                                    window.$pinia.vrcx.ipcEvent(packet);
-                                } else {
-                                    window.__ipcQueue = window.__ipcQueue || [];
-                                    window.__ipcQueue.push(packet);
+                    var browser = MainForm.Instance?.Browser;
+                    if (browser == null || browser.IsLoading || !browser.CanExecuteJavascriptInMainFrame) continue;
+                    // Dispatch IPC packet to the web app or queue if not ready.
+                    const string script = 
+                        """
+                            (function(packet){
+                                try {
+                                    if (window?.$pinia?.vrcx) {
+                                        window.$pinia.vrcx.ipcEvent(packet);
+                                    } else {
+                                        window.__ipcQueue = window.__ipcQueue ?? [];
+                                        window.__ipcQueue.push(packet);
+                                    }
+                                } catch (e) {
+                                    console.error('IPC dispatch error:', e);
                                 }
-                            } catch (e) {
-                                console.error('IPC dispatch error:', e);
-                            }
-                        })";
-                        MainForm.Instance.Browser.ExecuteScriptAsync(script, packet);
-                    }
+                            })
+                        """;
+                    browser.ExecuteScriptAsync(script, packet);
 #endif
                 }
             }
