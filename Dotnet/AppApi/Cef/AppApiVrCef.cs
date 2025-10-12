@@ -21,7 +21,21 @@ namespace VRCX
         public override void VrInit()
         {
             if (MainForm.Instance?.Browser != null && !MainForm.Instance.Browser.IsLoading && MainForm.Instance.Browser.CanExecuteJavascriptInMainFrame)
-                MainForm.Instance.Browser.ExecuteScriptAsync("$pinia.vr.vrInit", "");
+            {
+                var script = @"(function(arg){
+                    try {
+                        if (window && window.$pinia && window.$pinia.vr && typeof window.$pinia.vr.vrInit === 'function') {
+                            window.$pinia.vr.vrInit(arg);
+                        } else {
+                            window.__vrInitQueue = window.__vrInitQueue || [];
+                            window.__vrInitQueue.push(arg);
+                        }
+                    } catch (e) {
+                        console.error('VR init dispatch error:', e);
+                    }
+                })";
+                MainForm.Instance.Browser.ExecuteScriptAsync(script, "");
+            }
         }
 
         public override void ToggleSystemMonitor(bool enabled)

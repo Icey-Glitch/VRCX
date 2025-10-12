@@ -90,7 +90,23 @@ namespace VRCX
 
 #if !LINUX
                         if (MainForm.Instance?.Browser != null && !MainForm.Instance.Browser.IsLoading && MainForm.Instance.Browser.CanExecuteJavascriptInMainFrame)
-                            MainForm.Instance.Browser.ExecuteScriptAsync("$pinia.vrcx.ipcEvent", packet);
+                        {
+                            // Safely dispatch IPC packet to the web app. If $pinia/vrcx/ipcEvent isn't ready yet,
+                            // enqueue the packet on window.__ipcQueue to be processed once the app bootstraps.
+                            var script = @"(function(packet){
+                                try {
+                                    if (window && window.$pinia && window.$pinia.vrcx && typeof window.$pinia.vrcx.ipcEvent === 'function') {
+                                        window.$pinia.vrcx.ipcEvent(packet);
+                                    } else {
+                                        window.__ipcQueue = window.__ipcQueue || [];
+                                        window.__ipcQueue.push(packet);
+                                    }
+                                } catch (e) {
+                                    console.error('IPC dispatch error:', e);
+                                }
+                            })";
+                            MainForm.Instance.Browser.ExecuteScriptAsync(script, packet);
+                        }
 #endif
                     }
 

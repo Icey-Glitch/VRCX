@@ -159,6 +159,31 @@
 
     if (typeof window !== 'undefined') {
         window.$pinia = store;
+        // Drain any queued IPC packets that arrived before stores were ready
+        try {
+            if (Array.isArray(window.__ipcQueue) && store?.vrcx?.ipcEvent) {
+                for (const pkt of window.__ipcQueue) {
+                    try { store.vrcx.ipcEvent(pkt); } catch (e) { console.error('IPC queue drain error:', e); }
+                }
+                window.__ipcQueue = [];
+            }
+            // Drain any queued GameLog events
+            if (Array.isArray(window.__gameLogQueue) && store?.gameLog?.addGameLogEvent) {
+                for (const line of window.__gameLogQueue) {
+                    try { store.gameLog.addGameLogEvent(line); } catch (e) { console.error('GameLog queue drain error:', e); }
+                }
+                window.__gameLogQueue = [];
+            }
+            // Drain deferred VR init triggers
+            if (Array.isArray(window.__vrInitQueue) && store?.vr?.vrInit) {
+                for (const arg of window.__vrInitQueue) {
+                    try { store.vr.vrInit(arg); } catch (e) { console.error('VR init queue drain error:', e); }
+                }
+                window.__vrInitQueue = [];
+            }
+        } catch (e) {
+            console.error('Failed draining IPC queue:', e);
+        }
     }
 
     onBeforeMount(() => {

@@ -297,7 +297,21 @@ namespace VRCX
                     m_LogQueue.Enqueue(logLine);
 #else
                     if (MainForm.Instance != null && MainForm.Instance.Browser != null)
-                        MainForm.Instance.Browser.ExecuteScriptAsync("$pinia.gameLog.addGameLogEvent", logLine);
+                    {
+                        var script = @"(function(logLine){
+                            try {
+                                if (window && window.$pinia && window.$pinia.gameLog && typeof window.$pinia.gameLog.addGameLogEvent === 'function') {
+                                    window.$pinia.gameLog.addGameLogEvent(logLine);
+                                } else {
+                                    window.__gameLogQueue = window.__gameLogQueue || [];
+                                    window.__gameLogQueue.push(logLine);
+                                }
+                            } catch (e) {
+                                console.error('GameLog dispatch error:', e);
+                            }
+                        })";
+                        MainForm.Instance.Browser.ExecuteScriptAsync(script, logLine);
+                    }
 #endif
                 }
 
@@ -729,7 +743,7 @@ namespace VRCX
                 return false;
 
             var data = line.Substring(offset + 13);
-            
+
             // PWI, deprecated
             logger.Info("VRCX-World data: {0}", data);
             return true;
