@@ -26,7 +26,7 @@ namespace VRCX
         private readonly MemoryStream memoryStream;
         private readonly byte[] packetBuffer = new byte[1024 * 1024];
         private readonly Newtonsoft.Json.JsonSerializer serializer = new Newtonsoft.Json.JsonSerializer();
-        private string _currentPacket;
+        private string _currentPacket = string.Empty;
 
         public IPCClient(NamedPipeServerStream ipcServer)
         {
@@ -79,38 +79,36 @@ namespace VRCX
 
                 _currentPacket += Encoding.UTF8.GetString(_recvBuffer, 0, bytesRead);
 
-                if (_currentPacket[_currentPacket.Length - 1] == (char)0x00)
+                int delimiterIdx;
+                while ((delimiterIdx = _currentPacket.IndexOf((char)0x00)) != -1)
                 {
-                    var packets = _currentPacket.Split((char)0x00);
+                    var packet = _currentPacket.Substring(0, delimiterIdx);
+                    _currentPacket = _currentPacket.Substring(delimiterIdx + 1);
 
-                    foreach (var packet in packets)
-                    {
-                        if (string.IsNullOrEmpty(packet))
-                            continue;
+                    if (string.IsNullOrEmpty(packet))
+                        continue;
 
 #if !LINUX
-                        if (MainForm.Instance?.Browser != null && !MainForm.Instance.Browser.IsLoading && MainForm.Instance.Browser.CanExecuteJavascriptInMainFrame)
-                        {
-                            // Safely dispatch IPC packet to the web app. If $pinia/vrcx/ipcEvent isn't ready yet,
-                            // enqueue the packet on window.__ipcQueue to be processed once the app bootstraps.
-                            var script = @"(function(packet){
-                                try {
-                                    if (window && window.$pinia && window.$pinia.vrcx && typeof window.$pinia.vrcx.ipcEvent === 'function') {
-                                        window.$pinia.vrcx.ipcEvent(packet);
-                                    } else {
-                                        window.__ipcQueue = window.__ipcQueue || [];
-                                        window.__ipcQueue.push(packet);
-                                    }
-                                } catch (e) {
-                                    console.error('IPC dispatch error:', e);
+                    if (MainForm.Instance?.Browser != null && !MainForm.Instance.Browser.IsLoading && MainForm.Instance.Browser.CanExecuteJavascriptInMainFrame)
+                    {
+                        // Safely dispatch IPC packet to the web app. If $pinia/vrcx/ipcEvent isn't ready yet,
+                        // enqueue the packet on window.__ipcQueue to be processed once the app bootstraps.
+                        var script = @"(function(packet){
+                            try {
+                                if (window && window.$pinia && window.$pinia.vrcx && typeof window.$pinia.vrcx.ipcEvent === 'function' && 
+                                    window.$pinia.photon && Array.isArray(window.$pinia.photon.chatboxBlacklist)) {
+                                    window.$pinia.vrcx.ipcEvent(packet);
+                                } else {
+                                    window.__ipcQueue = window.__ipcQueue || [];
+                                    window.__ipcQueue.push(packet);
                                 }
-                            })";
-                            MainForm.Instance.Browser.ExecuteScriptAsync(script, packet);
-                        }
-#endif
+                            } catch (e) {
+                                console.error('IPC dispatch error:', e);
+                            }
+                        })";
+                        MainForm.Instance.Browser.ExecuteScriptAsync(script, packet);
                     }
-
-                    _currentPacket = string.Empty;
+#endif
                 }
             }
             catch (Exception e)

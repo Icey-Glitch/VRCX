@@ -417,6 +417,13 @@ export const useVrcxStore = defineStore('Vrcx', () => {
             console.log(`IPC invalid JSON, ${json}`);
             return;
         }
+        
+        // Reset IPC timeout for any valid IPC message to keep connection alive
+        if (!state.ipcEnabled) {
+            console.log('IPC connection established via', data.type);
+        }
+        state.ipcEnabled = true;
+        updateLoopStore.ipcTimeout = 60; // Reset timeout to 60 seconds
         switch (data.type) {
             case 'OnEvent':
                 if (!gameStore.isGameRunning) {
@@ -489,8 +496,6 @@ export const useVrcxStore = defineStore('Vrcx', () => {
                 if (!photonStore.photonLoggingEnabled) {
                     photonStore.setPhotonLoggingEnabled();
                 }
-                ipcEnabled.value = true;
-                updateLoopStore.ipcTimeout = 60; // 30secs
                 break;
             case 'MsgPing':
                 state.externalNotifierVersion = data.version;
